@@ -26,6 +26,8 @@ class AdminDashboard extends StatefulWidget {
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
+  static const String _adminWorkFolder = 'admin_work';
+
   final SupabaseClient _client = Supabase.instance.client;
   late final StorageService _storageService;
   final List<FileObject> _files = [];
@@ -60,19 +62,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Future<void> _loadFiles() async {
-    final user = _client.auth.currentUser;
-    if (user == null) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _files.clear();
-      });
-      return;
-    }
-
     try {
-      final files = await _storageService.listUserFiles(user.id);
+      final files = await _storageService.listFolderFiles(_adminWorkFolder);
       if (!mounted) {
         return;
       }
@@ -87,12 +78,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Future<void> _pickAndUploadFile() async {
-    final user = _client.auth.currentUser;
-    if (user == null) {
-      _setStatus('Sign in again before uploading.');
-      return;
-    }
-
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
@@ -107,13 +92,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final selectedFile = result.files.first;
     await _setLoading(() async {
       try {
-        await _storageService.uploadSelectedFile(
-          userId: user.id,
+        await _storageService.uploadSelectedFileToFolder(
+          folder: _adminWorkFolder,
           selectedFile: selectedFile,
         );
-        _setStatus(
-          'Uploaded ${selectedFile.name} to ${widget.storageBucketName}.',
-        );
+        _setStatus('Published ${selectedFile.name} to member updates.');
         await _loadFiles();
       } catch (error) {
         _setStatus('Upload failed: $error');
@@ -122,15 +105,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Future<void> _previewFile(FileObject file) async {
-    final user = _client.auth.currentUser;
-    if (user == null) {
-      _setStatus('Sign in again before previewing.');
-      return;
-    }
-
     await _setLoading(() async {
       try {
-        final url = await _storageService.createSignedUrl(user.id, file.name);
+        final url = await _storageService.createSignedUrlForPath(
+          '$_adminWorkFolder/${file.name}',
+        );
         if (_storageService.isImage(file.name)) {
           if (!mounted) {
             return;
@@ -163,15 +142,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Future<void> _downloadFile(FileObject file) async {
-    final user = _client.auth.currentUser;
-    if (user == null) {
-      _setStatus('Sign in again before downloading.');
-      return;
-    }
-
     await _setLoading(() async {
       try {
-        final url = await _storageService.createSignedUrl(user.id, file.name);
+        final url = await _storageService.createSignedUrlForPath(
+          '$_adminWorkFolder/${file.name}',
+        );
         final opened = await launchUrl(Uri.parse(url));
         if (!opened) {
           _setStatus('Could not open download URL.');
@@ -229,18 +204,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          'Receipts bucket',
+                          'Admin work updates',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Upload receipt images or PDFs, preview them, and keep the student org fund records organized.',
+                          'Share files that show what admins are currently working on. Members can view these updates in their panel.',
                         ),
                         const SizedBox(height: 16),
                         FilledButton.icon(
                           onPressed: _loading ? null : _pickAndUploadFile,
                           icon: const Icon(Icons.cloud_upload),
-                          label: const Text('Upload image or PDF'),
+                          label: const Text('Publish update file'),
                         ),
                         const SizedBox(height: 8),
                         OutlinedButton.icon(
@@ -254,7 +229,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Bucket files (${_files.length})',
+                  'Shared admin files (${_files.length})',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 8),

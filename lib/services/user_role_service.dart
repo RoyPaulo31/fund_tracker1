@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-enum UserRole { admin, member, unknown }
+enum UserRole { admin, member }
 
 extension UserRoleX on UserRole {
   static UserRole fromValue(String? value) {
@@ -12,7 +12,7 @@ extension UserRoleX on UserRole {
       case 'user':
         return UserRole.member;
       default:
-        return UserRole.unknown;
+        return UserRole.member;
     }
   }
 
@@ -22,8 +22,6 @@ extension UserRoleX on UserRole {
         return 'admin';
       case UserRole.member:
         return 'member';
-      case UserRole.unknown:
-        return 'unknown';
     }
   }
 
@@ -53,13 +51,11 @@ class UserRoleService {
 
       final roleValue = result?['role']?.toString();
       final role = UserRoleX.fromValue(roleValue);
-      if (role != UserRole.unknown) {
-        return RoleResolutionResult(
-          role: role,
-          source: 'profiles.id',
-          rawRoleValue: roleValue,
-        );
-      }
+      return RoleResolutionResult(
+        role: role,
+        source: 'profiles.id',
+        rawRoleValue: roleValue,
+      );
     } catch (error) {
       warning = 'profiles.id lookup failed: $error';
     }
@@ -76,39 +72,30 @@ class UserRoleService {
 
         final roleValue = result?['role']?.toString();
         final role = UserRoleX.fromValue(roleValue);
-        if (role != UserRole.unknown) {
-          return RoleResolutionResult(
-            role: role,
-            source: 'profiles.email',
-            rawRoleValue: roleValue,
-            warning:
-                'Resolved by email fallback. Check profiles.id matches auth.users.id.',
-          );
-        }
+        return RoleResolutionResult(
+          role: role,
+          source: 'profiles.email',
+          rawRoleValue: roleValue,
+          warning:
+              'Resolved by email fallback. Check profiles.id matches auth.users.id.',
+        );
       } catch (error) {
         final message = 'profiles.email lookup failed: $error';
-        warning = warning == null ? message : '$warning | $message';
+        warning = message;
       }
     }
 
-    final metadataRole =
+    final String? metadataRole =
         session.user.appMetadata['role']?.toString() ??
         session.user.userMetadata?['role']?.toString();
     final metadataParsed = UserRoleX.fromValue(metadataRole);
-    if (metadataParsed != UserRole.unknown) {
-      return RoleResolutionResult(
-        role: metadataParsed,
-        source: 'auth.metadata',
-        rawRoleValue: metadataRole,
-        warning: warning,
-      );
-    }
-
     return RoleResolutionResult(
-      role: UserRole.unknown,
-      source: 'none',
+      role: metadataParsed,
+      source: metadataRole?.isNotEmpty == true
+          ? 'auth.metadata'
+          : 'default.member',
       rawRoleValue: metadataRole,
-      warning: warning ?? 'No admin/member role found in profiles or metadata.',
+      warning: warning,
     );
   }
 }

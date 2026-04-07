@@ -47,6 +47,52 @@ class StorageService {
         .createSignedUrl('$userId/$fileName', 600);
   }
 
+  Future<void> uploadSelectedFileToFolder({
+    required String folder,
+    required PlatformFile selectedFile,
+  }) async {
+    final bytes = selectedFile.bytes;
+    if (bytes == null) {
+      throw StateError('The selected file has no bytes.');
+    }
+
+    final sanitizedFolder = folder.trim().replaceAll(' ', '_');
+    if (sanitizedFolder.isEmpty) {
+      throw StateError('Folder cannot be empty.');
+    }
+
+    final sanitizedFileName = selectedFile.name.replaceAll(' ', '_');
+    final filePath =
+        '$sanitizedFolder/${DateTime.now().millisecondsSinceEpoch}_$sanitizedFileName';
+
+    await client.storage
+        .from(bucketName)
+        .uploadBinary(
+          filePath,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: _contentTypeFromName(sanitizedFileName),
+          ),
+        );
+  }
+
+  Future<List<FileObject>> listFolderFiles(String folder) async {
+    final sanitizedFolder = folder.trim().replaceAll(' ', '_');
+    final files = await client.storage
+        .from(bucketName)
+        .list(path: sanitizedFolder);
+    files.sort((a, b) {
+      final aCreated = a.createdAt ?? '';
+      final bCreated = b.createdAt ?? '';
+      return bCreated.compareTo(aCreated);
+    });
+    return files;
+  }
+
+  Future<String> createSignedUrlForPath(String path) {
+    return client.storage.from(bucketName).createSignedUrl(path, 600);
+  }
+
   bool isImage(String fileName) {
     final lower = fileName.toLowerCase();
     return lower.endsWith('.png') ||

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../admin/admin_dashboard.dart';
+import '../member/member_dashboard.dart';
 import '../services/supabase_auth_service.dart';
 import '../services/user_role_service.dart';
 import 'login_screen.dart';
@@ -22,10 +23,9 @@ class _AuthGateState extends State<AuthGate> {
   StreamSubscription<AuthState>? _subscription;
 
   Session? _session;
-  UserRole _role = UserRole.unknown;
+  UserRole _role = UserRole.member;
   bool _loadingRole = false;
   String? _errorMessage;
-  String? _roleDebugMessage;
 
   @override
   void initState() {
@@ -55,8 +55,7 @@ class _AuthGateState extends State<AuthGate> {
     setState(() {
       _session = session;
       _errorMessage = null;
-      _roleDebugMessage = null;
-      _role = UserRole.unknown;
+      _role = UserRole.member;
       _loadingRole = session != null;
     });
     if (session != null) {
@@ -73,19 +72,15 @@ class _AuthGateState extends State<AuthGate> {
       setState(() {
         _role = resolution.role;
         _loadingRole = false;
-        _roleDebugMessage =
-            'role_source=${resolution.source}, raw_role=${resolution.rawRoleValue ?? 'null'}, user_id=${session.user.id}${resolution.warning == null ? '' : ', note=${resolution.warning}'}';
       });
     } catch (error) {
       if (!mounted) {
         return;
       }
       setState(() {
-        _role = UserRole.unknown;
+        _role = UserRole.member;
         _loadingRole = false;
-        _errorMessage = 'Could not resolve admin role: $error';
-        _roleDebugMessage =
-            'role_resolution_exception=$error, user_id=${session.user.id}';
+        _errorMessage = 'Could not resolve role, defaulted to member: $error';
       });
     }
   }
@@ -102,7 +97,7 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     if (_loadingRole) {
-      return const _LoadingScreen(message: 'Checking admin access...');
+      return const _LoadingScreen(message: 'Loading your panel...');
     }
 
     if (_role.isAdmin) {
@@ -113,13 +108,10 @@ class _AuthGateState extends State<AuthGate> {
       );
     }
 
-    return _AccessDeniedScreen(
+    return MemberDashboard(
       authService: _authService,
-      role: _role,
-      email: session.user.email,
-      userId: session.user.id,
-      errorMessage: _errorMessage,
-      debugMessage: _roleDebugMessage,
+      storageBucketName: 'receipts',
+      userRole: _role,
     );
   }
 }
@@ -140,97 +132,6 @@ class _LoadingScreen extends StatelessWidget {
             const SizedBox(height: 16),
             Text(message),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AccessDeniedScreen extends StatelessWidget {
-  const _AccessDeniedScreen({
-    required this.authService,
-    required this.role,
-    required this.email,
-    required this.userId,
-    required this.errorMessage,
-    required this.debugMessage,
-  });
-
-  final SupabaseAuthService authService;
-  final UserRole role;
-  final String? email;
-  final String userId;
-  final String? errorMessage;
-  final String? debugMessage;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Student Org Fund Tracker'),
-        actions: [
-          TextButton(
-            onPressed: authService.signOut,
-            child: const Text('Sign out'),
-          ),
-        ],
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.lock_outline, size: 72),
-                const SizedBox(height: 16),
-                Text(
-                  'Access restricted',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Signed in as ${email ?? 'unknown user'} with role "${role.label}".',
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 4),
-                SelectableText(
-                  'User ID: $userId',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'This fund tracker is admin-only. Ask an org admin to set your role to admin in the profiles table or auth metadata.',
-                  textAlign: TextAlign.center,
-                ),
-                if (debugMessage != null) ...[
-                  const SizedBox(height: 12),
-                  SelectableText(
-                    debugMessage!,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-                if (errorMessage != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    errorMessage!,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: authService.signOut,
-                  child: const Text('Sign out'),
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );

@@ -20,6 +20,20 @@ class SupabaseAuthService {
     return client.auth.signInWithPassword(email: email, password: password);
   }
 
+  Future<void> signInWithMagicLink({required String email}) {
+    return client.auth.signInWithOtp(
+      email: email,
+      emailRedirectTo: kIsWeb ? Uri.base.origin : null,
+    );
+  }
+
+  Future<void> sendPasswordResetEmail({required String email}) {
+    return client.auth.resetPasswordForEmail(
+      email,
+      redirectTo: kIsWeb ? Uri.base.origin : null,
+    );
+  }
+
   Future<void> signInWithGoogle() {
     return client.auth.signInWithOAuth(
       OAuthProvider.google,
