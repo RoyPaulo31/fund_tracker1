@@ -84,8 +84,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _openSignedInPanel() async {
-    final session = widget.authService.client.auth.currentSession;
+  Future<void> _openSignedInPanel({Session? session}) async {
+    session ??= widget.authService.client.auth.currentSession;
     if (session == null || !mounted) {
       return;
     }
@@ -115,14 +115,39 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signIn() async {
     FocusScope.of(context).unfocus();
-    await _runAction(() {
-      return widget.authService.signInWithEmail(
+
+    if (!_validateInputs()) {
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _showRecoveryOptions = false;
+    });
+
+    try {
+      final response = await widget.authService.signInWithEmail(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-    });
-
-    await _openSignedInPanel();
+      _setStatus('Signed in successfully.');
+      await _openSignedInPanel(session: response.session);
+    } on AuthException catch (error) {
+      _setStatus(_friendlyAuthMessage(error));
+      if (error.message.toLowerCase().contains('invalid login credentials')) {
+        setState(() {
+          _showRecoveryOptions = true;
+        });
+      }
+    } catch (error) {
+      _setStatus('Authentication failed. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
   }
 
   Future<void> _signUp() async {
@@ -235,7 +260,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String _friendlyAuthMessage(AuthException error) {
     final message = error.message.toLowerCase();
     if (message.contains('invalid login credentials')) {
-      return 'Invalid email or password. If this account was created with Google, send a password setup link first.';
+      return 'Invalid email or password. If this account was created with Google, send a password setup link first. If you are sure the credentials are correct, confirm the app is pointing at the same Supabase project where the account exists.';
     }
     if (message.contains('email not confirmed')) {
       return 'Please confirm your email first, then sign in.';

@@ -13,7 +13,7 @@ class SupabaseAuthService {
     return client.auth.signUp(email: email, password: password);
   }
 
-  Future<void> signInWithEmail({
+  Future<AuthResponse> signInWithEmail({
     required String email,
     required String password,
   }) {
