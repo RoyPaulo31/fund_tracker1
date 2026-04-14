@@ -93,6 +93,34 @@ class StorageService {
     return client.storage.from(bucketName).createSignedUrl(path, 600);
   }
 
+  Future<void> renameFileInFolder({
+    required String folder,
+    required String oldName,
+    required String newName,
+  }) async {
+    final sanitizedFolder = folder.trim().replaceAll(' ', '_');
+    if (sanitizedFolder.isEmpty) {
+      throw StateError('Folder cannot be empty.');
+    }
+
+    final sourceName = oldName.trim();
+    if (sourceName.isEmpty) {
+      throw StateError('Old file name cannot be empty.');
+    }
+
+    final targetName = newName.trim().replaceAll(' ', '_');
+    if (targetName.isEmpty) {
+      throw StateError('New file name cannot be empty.');
+    }
+    if (targetName == sourceName) {
+      throw StateError('New file name must be different from current name.');
+    }
+
+    await client.storage
+        .from(bucketName)
+        .move('$sanitizedFolder/$sourceName', '$sanitizedFolder/$targetName');
+  }
+
   bool isImage(String fileName) {
     final lower = fileName.toLowerCase();
     return lower.endsWith('.png') ||

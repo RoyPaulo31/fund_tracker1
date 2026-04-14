@@ -20,6 +20,10 @@ class SupabaseAuthService {
     return client.auth.signInWithPassword(email: email, password: password);
   }
 
+  Future<AuthResponse> signInAsGuest() {
+    return client.auth.signInAnonymously();
+  }
+
   Future<void> signInWithMagicLink({required String email}) {
     return client.auth.signInWithOtp(
       email: email,

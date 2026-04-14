@@ -241,6 +241,29 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _signInAsGuest() async {
+    setState(() {
+      _loading = true;
+      _showRecoveryOptions = false;
+    });
+
+    try {
+      final response = await widget.authService.signInAsGuest();
+      _setStatus('Signed in as guest.');
+      await _openSignedInPanel(session: response.session);
+    } on AuthException catch (error) {
+      _setStatus(_friendlyAuthMessage(error));
+    } catch (error) {
+      _setStatus('Guest sign-in failed. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
+
   void _setStatus(String message) {
     if (!mounted) {
       return;
@@ -380,6 +403,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: _loading ? null : _signInWithGoogle,
                         icon: const Icon(Icons.login),
                         label: const Text('Continue with Google'),
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: _loading ? null : _signInAsGuest,
+                        icon: const Icon(Icons.person_outline),
+                        label: const Text('Continue as Guest'),
                       ),
                       const SizedBox(height: 16),
                       Text(_status, textAlign: TextAlign.center),
